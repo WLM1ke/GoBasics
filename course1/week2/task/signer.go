@@ -64,15 +64,36 @@ func MultiHash(in, out chan interface{}) {
 
 		dataStr := data.(string)
 
-		var outStr string
+		gatherMultiHash(dataStr, out)
 
-		for th := 0; th <= 5; th++ {
-
-			outStr += DataSignerCrc32(strconv.Itoa(th) + dataStr)
-
-		}
-		out <- outStr
 	}
+}
+
+func gatherMultiHash(data string, out chan interface{}) {
+
+	const calls = 6
+
+	wg := &sync.WaitGroup{}
+	rez := make([]string, 6)
+	wg.Add(calls)
+
+	for th := 0; th < calls; th++ {
+
+		go chanDataSignerCrc32(th, data, rez[:], wg)
+
+	}
+
+	wg.Wait()
+
+	out <- strings.Join(rez, "")
+
+}
+
+func chanDataSignerCrc32(n int, data string, rez []string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	rez[n] = DataSignerCrc32(strconv.Itoa(n) + data)
+
 }
 
 // CombineResults получает все результаты, сортирует (https://golang.org/pkg/sort/),
