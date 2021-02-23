@@ -10,38 +10,31 @@ import (
 // ExecutePipeline of jobs
 func ExecutePipeline(jobs ...job) {
 
-	wg := &sync.WaitGroup{}
+	wg := sync.WaitGroup{}
 
-	chans := createArrayOfChan(len(jobs))
-	close(chans[0])
+	prev := make(chan interface{})
+	close(prev)
 
-	for n, step := range jobs {
+	for n := range jobs {
 
 		wg.Add(1)
-		go jobStarter(step, chans[n], chans[n+1], wg)
+		in := prev
+		out := make(chan interface{})
+		step := jobs[n]
+
+		go func() {
+
+			defer wg.Done()
+			defer close(out)
+
+			step(in, out)
+
+		}()
+
+		prev = out
 
 	}
 	wg.Wait()
-
-}
-
-func createArrayOfChan(nJobs int) []chan interface{} {
-
-	chans := make([]chan interface{}, nJobs+1)
-
-	for i := range chans {
-		chans[i] = make(chan interface{})
-	}
-
-	return chans
-}
-
-func jobStarter(step job, in, out chan interface{}, wg *sync.WaitGroup) {
-
-	defer wg.Done()
-	defer close(out)
-
-	step(in, out)
 
 }
 
